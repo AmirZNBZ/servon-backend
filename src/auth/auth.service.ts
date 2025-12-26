@@ -1,16 +1,16 @@
 import * as bcrypt from 'bcrypt';
-import { Injectable } from '@nestjs/common';
-import { RegisterDto } from './dto/register.dto';
-import { LoginDto } from './dto/login.dto';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { RegisterDto } from './dto/register.dto.js';
+import { LoginDto } from './dto/login.dto.js';
+import { PrismaService } from 'src/prisma/prisma.service';
 @Injectable()
 export class AuthService {
-  private users: { email: string; passwordHash: string }[] = [];
-
   constructor(
     private jwtService: JwtService,
     private config: ConfigService,
+    private prisma: PrismaService,
   ) {}
 
   generateAccessToken(userId: string) {
@@ -48,37 +48,46 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto) {
-    const user = this.users.find((user) => user.email === dto.email);
+    const exists = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
 
-    if (user) {
+    if (exists) {
       throw new Error('User With This UserName Are Exist');
     }
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
 
-    this.users.push({
-      email: dto.email,
-      passwordHash,
+    await this.prisma.user.create({
+      data: {
+        email: dto.email,
+        password: passwordHash,
+        name: dto.email.split('@')[0],
+        role: 'USER',
+        permissions: [],
+      },
     });
 
     return { message: 'User Registered' };
   }
 
   async login(dto: LoginDto) {
-    const user = this.users.find((user) => user.email === dto.email);
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
 
     if (!user) {
-      throw new Error('Invalid credentials');
+      throw new UnauthorizedException('Invalid credentials');
     }
 
-    const isValid = await bcrypt.compare(dto.password, user.passwordHash);
+    const isValid = await bcrypt.compare(dto.password, user.password);
 
     if (!isValid) {
-      throw new Error('Invalid credentials');
+      throw new UnauthorizedException('Invalid credentials');
     }
 
-    const accessToken = this.generateAccessToken(user.email);
-    const refreshToken = this.generateRefreshToken(user.email);
+    const accessToken = this.generateAccessToken(user.id);
+    const refreshToken = this.generateRefreshToken(user.id);
 
     return { accessToken, refreshToken };
   }

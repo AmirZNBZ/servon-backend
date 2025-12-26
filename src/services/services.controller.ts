@@ -8,13 +8,12 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
-import { ServicesService } from './services.service';
-import { CreateServiceDto } from './dto/create-service.dto';
-import { UpdateServiceDto } from './dto/update-service.dto';
-import { PermissionsGuard } from 'src/auth/guards/permissions.guard';
-import { RequirePermissions } from 'src/auth/decorators/permissions.decorator';
-
+import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
+import { ServicesService } from './services.service.js';
+import { PermissionsGuard } from '../auth/guards/permissions.guard.js';
+import { CreateServiceDto } from './dto/create-service.dto.js';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator.js';
+import { UpdateServiceDto } from './dto/update-service.dto.js';
 @UseGuards(JwtAuthGuard)
 @Controller('services')
 export class ServicesController {
@@ -29,6 +28,7 @@ export class ServicesController {
   @Post()
   @RequirePermissions('CREATE_SERVICE')
   create(@Body() dto: CreateServiceDto) {
+    console.log("create")
     return this.servicesService.create(dto);
   }
 

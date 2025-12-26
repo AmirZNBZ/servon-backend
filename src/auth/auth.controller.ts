@@ -8,14 +8,38 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Response, Request } from 'express';
-import { AuthService } from './auth.service';
-import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
-import { JwtAuthGuard } from './jwt-auth.guard';
+import { RegisterDto } from './dto/register.dto.js';
+import { AuthService } from './auth.service.js';
+import { JwtAuthGuard } from './jwt-auth.guard.js';
+import { LoginDto } from './dto/login.dto.js';
+import { PrismaService } from 'src/prisma/prisma.service';
+
+enum Role {
+  USER = 'USER',
+  ADMIN = 'ADMIN',
+}
+
+enum Permissions {
+  CREATE_SERVICE = 'CREATE_SERVICE',
+  UPDATE_SERVICE = 'UPDATE_SERVICE',
+  DELETE_SERVICE = 'DELETE_SERVICE',
+}
+interface User {
+  role: Role;
+  id: string;
+  name: string;
+  email: string;
+  createdAt: Date;
+  password: string;
+  permissions: Permissions[];
+}
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private prisma: PrismaService,
+  ) {}
 
   @Post('register')
   register(@Body() dto: RegisterDto) {
@@ -61,7 +85,20 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Get('me')
-  getProfile(@Req() req: Express.Request) {
-    return req.user;
+  getProfile(@Req() req: Express.Request & { user: User }) {
+    console.log('req', req.user);
+    const userId = req.user.id;
+
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        role: true,
+        name: true,
+        email: true,
+        password: true,
+        permissions: true,
+      },
+    });
   }
 }
